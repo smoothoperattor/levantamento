@@ -1,0 +1,670 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Levantamento — consulta de pedidos e devoluções</title>
+<style>
+  :root{
+    --ink:#182030; --mut:#5b6b7d; --line:#d8e0e6; --bg:#f4f6f8; --card:#ffffff;
+    --accent:#29716f; --accent-soft:#e6f0ef; --ok:#1f7a3d; --warn:#a8580a; --info:#2563ab; --off:#6b7280; --bad:#555f6b;
+  }
+  *{box-sizing:border-box}
+  html{-webkit-text-size-adjust:100%}
+  body{margin:0;background:var(--bg);color:var(--ink);font-family:system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;font-size:clamp(15px,2.6vw,17px);line-height:1.45}
+  header{background:var(--ink);color:#fff;padding:14px 16px}
+  header h1{margin:0;font-size:clamp(19px,4.5vw,24px);font-weight:700;letter-spacing:.2px}
+  header p{margin:2px 0 0;color:#b7c2cd;font-size:clamp(12px,2.8vw,13.5px)}
+  nav{display:flex;gap:6px;padding:10px 12px;background:var(--card);border-bottom:1px solid var(--line);position:sticky;top:0;z-index:5;flex-wrap:wrap}
+  nav button{flex:1 1 auto;min-width:110px;border:1px solid var(--line);background:#fff;color:var(--ink);border-radius:10px;padding:9px 10px;font-size:clamp(13px,3vw,14.5px);font-weight:600;cursor:pointer}
+  nav button.ativo{background:var(--accent);border-color:var(--accent);color:#fff}
+  main{max-width:720px;margin:0 auto;padding:12px 12px 48px}
+  section.painel{display:none}
+  section.painel.ativo{display:block}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px;margin:10px 0}
+  .card h2{margin:0 0 8px;font-size:clamp(15px,3.4vw,17px)}
+  .card p.dica{margin:6px 0 0;color:var(--mut);font-size:clamp(12.5px,2.9vw,13.5px)}
+  video{width:100%;max-width:100%;height:auto;border-radius:12px;background:#0b1218;display:block}
+  .moldura{position:relative}
+  .moldura:after{content:"";position:absolute;left:8%;top:14%;width:84%;height:26%;border:2px dashed rgba(255,255,255,.85);border-radius:8px;pointer-events:none}
+  .botoes{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap}
+  .botoes button{flex:1 1 150px;border:0;border-radius:11px;padding:12px 14px;font-size:clamp(14px,3.2vw,15.5px);font-weight:700;cursor:pointer;background:var(--accent);color:#fff}
+  .botoes button.sec{background:var(--accent-soft);color:var(--accent);border:1px solid var(--accent)}
+  .botoes button:disabled{opacity:.5;cursor:default}
+  .status{margin-top:8px;font-size:clamp(12.5px,2.9vw,13.5px);color:var(--mut);min-height:1.2em}
+  .barra{height:6px;background:var(--line);border-radius:3px;overflow:hidden;margin-top:6px;display:none}
+  .barra>i{display:block;height:100%;width:0;background:var(--accent);transition:width .2s}
+  label.campo{display:block;margin:8px 0 4px;font-weight:600;font-size:clamp(13px,3vw,14px)}
+  input[type=text],select{width:100%;padding:11px 12px;border:1px solid var(--line);border-radius:10px;font-size:clamp(15px,3.4vw,16px);font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;background:#fff;color:var(--ink)}
+  select{font-family:inherit}
+  .pedido-cab{background:var(--ink);color:#fff;border-radius:14px;padding:14px;margin:12px 0}
+  .pedido-cab .num{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:clamp(15px,3.6vw,17px);font-weight:700;word-break:break-all}
+  .pedido-cab .meta{color:#b7c2cd;font-size:clamp(12.5px,2.9vw,13.5px);margin-top:4px}
+  .pedido-cab button{margin-top:10px;background:rgba(255,255,255,.14);color:#fff;border:1px solid rgba(255,255,255,.35);border-radius:9px;padding:7px 12px;font-size:12.5px;cursor:pointer}
+  .item{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:13px;margin:10px 0}
+  .item .prod{font-weight:600;font-size:clamp(14px,3.3vw,15.5px);overflow-wrap:anywhere}
+  .linha{display:flex;gap:10px;align-items:flex-start;margin-top:8px;flex-wrap:wrap}
+  .qtd{background:var(--accent-soft);color:var(--accent);border-radius:10px;padding:6px 10px;font-weight:800;font-size:clamp(14px,3.4vw,16px);white-space:nowrap}
+  .qtd small{display:block;font-size:10.5px;font-weight:600;opacity:.85}
+  .badge{display:inline-block;border-radius:999px;padding:5px 11px;font-size:clamp(12px,2.9vw,13px);font-weight:700;color:#fff}
+  .b-dev{background:var(--warn)} .b-apr{background:var(--info)} .b-cam{background:var(--accent)} .b-ent{background:var(--off)} .b-can{background:var(--bad)}
+  .dev{margin-top:8px;padding:9px 11px;background:#f7f9fa;border:1px solid var(--line);border-radius:10px;font-size:clamp(13px,3vw,14px);overflow-wrap:anywhere}
+  .dev b{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+  .dev button{float:right;margin-left:8px;background:var(--accent-soft);color:var(--accent);border:1px solid var(--accent);border-radius:8px;padding:4px 9px;font-size:11.5px;cursor:pointer;font-weight:700}
+  .pacote-cab{background:#20415f;color:#fff;border-radius:14px;padding:14px;margin:12px 0}
+  .pacote-cab .t{font-weight:800;font-size:clamp(15px,3.6vw,17px)}
+  .pacote-cab .m{color:#c3d2e0;font-size:clamp(12.5px,2.9vw,13.5px);margin-top:4px}
+  .pacote-cab .mono{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;word-break:break-all}
+  .erro{background:#fdeeee;border:1px solid #e4b6b6;color:#8c2f2f;border-radius:12px;padding:12px;margin:10px 0;font-size:clamp(13px,3vw,14px)}
+  .aviso{background:#fff8e8;border:1px solid #e6d193;color:#7a5c0a;border-radius:12px;padding:10px 12px;margin:10px 0;font-size:clamp(12.5px,2.9vw,13.5px)}
+  .tabela-wrap{overflow-x:auto;border:1px solid var(--line);border-radius:12px;background:var(--card)}
+  table{border-collapse:collapse;width:100%;min-width:640px;font-size:clamp(12px,2.8vw,13.5px)}
+  th{background:var(--accent);color:#fff;text-align:left;padding:8px 9px;position:sticky;top:0}
+  td{border-top:1px solid var(--line);padding:7px 9px;vertical-align:top}
+  tr:nth-child(even) td{background:#f6f9f8}
+  td.mono{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;white-space:nowrap}
+  tr.clicavel{cursor:pointer}
+  .rodape{margin-top:22px;color:var(--mut);font-size:clamp(11.5px,2.7vw,12.5px);text-align:center}
+  .oculto{display:none!important}
+  .resultado-vazio{color:var(--mut);font-size:clamp(13px,3vw,14px);margin:14px 4px}
+</style>
+</head>
+<body>
+<header>
+  <h1>Levantamento</h1>
+  <p>Consulta de pedidos e devoluções — aponte a câmera para a etiqueta do pacote</p>
+</header>
+
+<nav>
+  <button id="tab-ocr" class="ativo" data-vai="pnl-ocr">Ler etiqueta</button>
+  <button id="tab-bc" data-vai="pnl-bc">Código de barras</button>
+  <button id="tab-manual" data-vai="pnl-manual">Digitar nº</button>
+  <button id="tab-lista" data-vai="pnl-lista">Lista completa</button>
+</nav>
+
+<main>
+  <div id="resultado"></div>
+
+  <!-- ===================== MODO OCR (texto da etiqueta) ===================== -->
+  <section id="pnl-ocr" class="painel ativo">
+    <div class="card">
+      <h2>Ler o número do pedido na etiqueta</h2>
+      <p class="dica">Aponte para a etiqueta e enquadre a linha <b>“Order ID: 702-…”</b>. O app fotografa a tela, lê o texto e busca o pedido. Se a leitura falhar, use o botão de foto (maior resolução) ou digite o número.</p>
+      <div class="moldura" style="margin-top:10px"><video id="video-ocr" playsinline muted autoplay></video></div>
+      <div class="botoes">
+        <button id="btn-abrir-cam">Abrir câmera</button>
+        <button id="btn-capturar" class="sec" disabled>Capturar e ler</button>
+      </div>
+      <div class="botoes">
+        <button id="btn-foto" class="sec">Ler foto em alta resolução (câmera/galeria)</button>
+      </div>
+      <input id="inp-foto" type="file" accept="image/*" capture="environment" class="oculto">
+      <div class="status" id="status-ocr"></div>
+      <div class="barra" id="barra-ocr"><i></i></div>
+    </div>
+    <div class="aviso">A câmera exige página segura (HTTPS) — no GitHub Pages funciona automaticamente. A primeira leitura baixa o leitor de texto (uma vez só, uns 10&nbsp;MB); depois o navegador costuma reaproveitar.</div>
+  </section>
+
+  <!-- ===================== MODO CÓDIGO DE BARRAS ===================== -->
+  <section id="pnl-bc" class="painel">
+    <div class="card">
+      <h2>Ler código de barras / DataMatrix</h2>
+      <p class="dica">Útil para as <b>etiquetas dos pacotes de devolução</b> (o código de barras “Código de Barras da devolução”, ex.: DY0wl3HFRRMA) e para rastreamentos (ex.: DA654782298BR). Na etiqueta de <i>envio</i>, o código de barras é de transporte e não contém o nº do pedido — para ela, use “Ler etiqueta”.</p>
+      <div class="moldura" style="margin-top:10px"><video id="video-bc" playsinline muted autoplay></video></div>
+      <div class="botoes">
+        <button id="btn-abrir-cam-bc">Abrir câmera</button>
+        <button id="btn-parar-bc" class="sec" disabled>Parar leitura</button>
+      </div>
+      <div class="status" id="status-bc"></div>
+    </div>
+  </section>
+
+  <!-- ===================== MODO MANUAL ===================== -->
+  <section id="pnl-manual" class="painel">
+    <div class="card">
+      <h2>Digitar ou escolher</h2>
+      <p class="dica">Aceita nº do pedido (702-…), rastreamento (…BR), código de postagem ou ID de devolução.</p>
+      <label class="campo" for="inp-manual">Número</label>
+      <input id="inp-manual" type="text" placeholder="702-3991214-5653015 ou DY0wl3HFRRMA" autocomplete="off">
+      <label class="campo" for="sel-manual">…ou escolha o pedido na lista</label>
+      <select id="sel-manual"><option value="">— selecionar —</option></select>
+      <div class="botoes"><button id="btn-consultar">Consultar</button></div>
+    </div>
+  </section>
+
+  <!-- ===================== LISTA COMPLETA ===================== -->
+  <section id="pnl-lista" class="painel">
+    <div class="card">
+      <h2>Lista completa — 39 produtos</h2>
+      <input id="inp-filtro" type="text" placeholder="filtrar por produto, pedido ou situação…" style="margin-top:6px" autocomplete="off">
+    </div>
+    <div class="tabela-wrap" style="margin-top:10px">
+      <table id="tbl-lista">
+        <thead><tr><th>#</th><th>Pedido</th><th>Produto</th><th>Qtd</th><th>Situação</th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+    <p class="rodape">Fonte: levantamento conferido (PDF × DOCX) em 26/11/2026 — 22 pedidos, 39 produtos, 103 unidades. Os dados estão embutidos neste arquivo; a consulta funciona sem internet.</p>
+  </section>
+</main>
+
+<script>
+/*CORE-BEGIN*/
+/* ============ BASE DE DADOS (fonte: Levantamento conferido em 26/11/2026) ============ */
+const PEDIDO_TOTAL = {
+  "702-4092847-4151457":"137,74","702-9780654-7289839":"79,96","702-8769365-2775404":"72,18",
+  "702-8347530-3600241":"94,81","702-7771397-7250618":"95,70","702-5521248-5050619":"133,88",
+  "702-3097260-1289811":"507,11","702-2464340-9961030":"180,39","702-2190383-6711424":"136,42",
+  "702-2079532-6645026":"541,22","702-0442777-8792210":"116,72","702-0281675-1150639":"1.224,02",
+  "702-9988693-4044261":"123,49","702-1035869-1408223":"72,19","702-3363770-9297066":"447,23",
+  "702-7785880-8155457":"","702-9713427-1598646":"","702-3991214-5653015":"",
+  "702-1430848-3452214":"1.847,65","702-9918830-6981051":"","702-4549914-7021850":"",
+  "702-9840877-8169810":""
+};
+const ITENS = [
+  {n:1,pedido:"702-4092847-4151457",data:"19/11/2026",qtd:1,situacao:"Devolução iniciada",dev:"Código de devolução não incluído no documento — consultar “Exibir status de devolução” no site",produto:"Kit 2 Mouses Sem Fio Bluetooth Recarregável Ergonômico LED RGB Colorido Optico Notebook Computador"},
+  {n:2,pedido:"702-4092847-4151457",data:"19/11/2026",qtd:1,situacao:"Devolução iniciada",dev:"Código de devolução não incluído no documento — consultar “Exibir status de devolução” no site",produto:"Combo Teclado e Mouse CSI50 Sem Fio Preto Intelbras"},
+  {n:3,pedido:"702-9780654-7289839",data:"19/11/2026",qtd:4,situacao:"Solicitação de devolução aprovada",dev:"Levar na agência dos Correios — código de postagem AP736161644BR — ID DZ0zlNH2RRMA — até 05/12/2026",produto:"Jogo de Tabuleiro Educativo 2 em 1 Jogo da Velha Resta 1 Pequeno"},
+  {n:4,pedido:"702-8769365-2775404",data:"19/11/2026",qtd:3,situacao:"Solicitação de devolução aprovada",dev:"Etiqueta do vendedor (LojaGubler) — ID DL0XlgHVRRMA — até 07/12/2026",produto:"Kit 2 Desengripantes Multiuso Lubrificante MP1 Spray 300ML Mundial Prime"},
+  {n:5,pedido:"702-8347530-3600241",data:"19/11/2026",qtd:2,situacao:"Solicitação de devolução aprovada",dev:"Levar na agência dos Correios — código de postagem 4602950814 — ID Dh00ldHzRRMA — até 01/12/2026",produto:"Medalha de Acrílico Transparente 8x8cm para Premiação Eventos e Personalização, 50"},
+  {n:6,pedido:"702-7771397-7250618",data:"19/11/2026",qtd:3,situacao:"Solicitação de devolução aprovada",dev:"Levar na agência dos Correios — código de postagem AP736161216BR — ID D50dlbHzRRMA — até 01/12/2026",produto:"Papel Fotografico, Off Paper, 10065, Branco"},
+  {n:7,pedido:"702-5521248-5050619",data:"19/11/2026",qtd:1,situacao:"A caminho — chega entre 01/12 a 03/12/2026",dev:"Devolução não iniciada — opção “Devolver ou substituir itens” disponível",produto:"Tinta Reabastecedor Para Marcador De Quadro Branco, Radex, 1000 ml, Azul"},
+  {n:8,pedido:"702-3097260-1289811",data:"19/11/2026",qtd:2,situacao:"A caminho — chega entre 01/12 a 03/12/2026",dev:"Devolução não iniciada — opção “Devolver ou substituir itens” disponível",produto:"Tinta Reabastecedor Para Marcador De Quadro Branco, Radex, 1000 ml, Vermelho"},
+  {n:9,pedido:"702-3097260-1289811",data:"19/11/2026",qtd:2,situacao:"A caminho — chega entre 01/12 a 03/12/2026",dev:"Devolução não iniciada — opção “Devolver ou substituir itens” disponível",produto:"Tinta Reabastecedor Para Marcador De Quadro Branco, Radex, 1000 ml, Preto"},
+  {n:10,pedido:"702-2464340-9961030",data:"19/11/2026",qtd:1,situacao:"Entregue em 25/11/2026",dev:"Sem opção de devolução",produto:"PLACA-MÃE H61, LGA 1155 – DDR3 – M.2 NVMe – CHIPSET INTEL H61 – CLANM | Chipset Intel H61, Suporte a DDR3, Slot M.2 NVMe, Socket LGA 1155, Baixo Custo"},
+  {n:11,pedido:"702-2190383-6711424",data:"19/11/2026",qtd:2,situacao:"Solicitação de devolução aprovada",dev:"Etiqueta do vendedor (Inter & Supplier) — ID Dk0vlLHvRRMA — até 12/12/2026",produto:"Papel Adesivo Transparente Impritact 45cm X 25m Autoadesivo Reposicionável - 40 micra"},
+  {n:12,pedido:"702-2079532-6645026",data:"19/11/2026",qtd:3,situacao:"Solicitação de devolução aprovada",dev:"Levar na agência dos Correios — código de postagem 4602951633 — ID Dh07lwHvRRMA — até 03/12/2026",produto:"Kit 10 Lampadas Led Bulbo Branco Frio 40W 6500K E27 110v/220v Bivolt Alut By Avant"},
+  {n:13,pedido:"702-0442777-8792210",data:"19/11/2026",qtd:4,situacao:"Solicitação de devolução aprovada",dev:"Código de devolução não incluído no documento — consultar “Exibir status de devolução” no site",produto:"Genérico Recarga para Pincel de Quadro Branco 100ml Não Mancha o Quadro (Verde)"},
+  {n:14,pedido:"702-0281675-1150639",data:"19/11/2026",qtd:10,situacao:"Devolução iniciada",dev:"Pacote 2/5 — coleta pelos Correios — rastreio DA654782298BR — devolver até 01/02/2027",produto:"Kit 4 Marcadores de Quadro Branco BIC Marking Cores Clássicas + 1 Apagador, Ponta Resistente, Apaga Fácil, 970929"},
+  {n:15,pedido:"702-0281675-1150639",data:"19/11/2026",qtd:2,situacao:"Devolução iniciada",dev:"Pacote 2/5 — coleta pelos Correios — rastreio DA654782298BR — devolver até 01/02/2027",produto:"Pilha Alcalina AA com 16 Unidades, Elgin, Alcalina, 1.5V"},
+  {n:16,pedido:"702-0281675-1150639",data:"19/11/2026",qtd:10,situacao:"Devolução iniciada",dev:"Pacote 2/5 — coleta pelos Correios — rastreio DA654782298BR — devolver até 01/02/2027",produto:"Scottini Minidicionário: Inglês"},
+  {n:17,pedido:"702-0281675-1150639",data:"19/11/2026",qtd:10,situacao:"Devolução iniciada",dev:"Pacote 2/5 — coleta pelos Correios — rastreio DA654782298BR — devolver até 01/02/2027",produto:"Apagador para Quadro Branco Masterprint MP 3100, Com Depósito e Ímã | Azul"},
+  {n:18,pedido:"702-0281675-1150639",data:"19/11/2026",qtd:4,situacao:"Devolução iniciada",dev:"Pacote 2/5 — coleta pelos Correios — rastreio DA654782298BR — devolver até 01/02/2027",produto:"Carlu Brinquedos - Xadrez e Damas Colegial Jogo de Tabuleiro, 4+ Anos, 32 Peças, Multicolorido, 1176"},
+  {n:19,pedido:"702-0281675-1150639",data:"19/11/2026",qtd:3,situacao:"A caminho — chega entre 30/11 a 28/12/2026",dev:"Remessa não incluída na devolução",produto:"Papel Vergê Branco 120g A4 | Kits com 150, 300 ou 500 Folhas | Papel Texturizado para Convites e Impressões | Kitts Mania (300 Folhas)"},
+  {n:20,pedido:"702-0281675-1150639",data:"19/11/2026",qtd:5,situacao:"Devolução iniciada",dev:"Pacote 3/5 — coleta pelos Correios — rastreio QS659313950BR — devolver até 01/02/2027",produto:"Plástico para Plastificação para RG, 80mm X 111mm, 125 Micras, 0,05, Pacote com 100 Unidades, Masterprint"},
+  {n:21,pedido:"702-0281675-1150639",data:"19/11/2026",qtd:3,situacao:"Devolução iniciada",dev:"Pacote 3/5 — coleta pelos Correios — rastreio QS659313950BR — devolver até 01/02/2027",produto:"Kit Lampada led 15W 6500k Branco Frio Bivolt - Elgin - 10 Unidades"},
+  {n:22,pedido:"702-0281675-1150639",data:"19/11/2026",qtd:2,situacao:"Entregue em 24/11/2026",dev:"Devolução não iniciada — elegível até 31/01/2027",produto:"GGB Jogo Detetive Sherlock Cards"},
+  {n:23,pedido:"702-0281675-1150639",data:"19/11/2026",qtd:1,situacao:"Devolução iniciada",dev:"Pacote 1/5 — coleta pelos Correios — rastreio QS659313963BR — devolver até 01/02/2027",produto:"Torneira Jardim/Tanque/Quintal e Máquina De Lavar - Com Encaixe Para Manheira - Cor Chumbo - Plástico ABS 1/4 de volta"},
+  {n:24,pedido:"702-0281675-1150639",data:"19/11/2026",qtd:1,situacao:"Devolução iniciada",dev:"Pacote 5/5 — coleta pelos Correios — rastreio DA654782275BR — devolver até 01/02/2027",produto:"Tubo com 24 Pilhas Alcalinas AAA (1ª remessa)"},
+  {n:25,pedido:"702-0281675-1150639",data:"19/11/2026",qtd:2,situacao:"Entregue em 25/11/2026",dev:"Devolução não iniciada — opção “Devolver ou substituir itens” disponível",produto:"Álcool Isopropílico 99,8% 1L Limpador Técnico Eletrônicos e Placas | Alta pureza e secagem rápida para limpeza técnica de placas, circuitos, CPU, notebook, celular, conectores e equipamentos"},
+  {n:26,pedido:"702-0281675-1150639",data:"19/11/2026",qtd:1,situacao:"Devolução iniciada",dev:"Pacote 4/5 — coleta pelos Correios — rastreio DA654782284BR — devolver até 01/02/2027",produto:"Kit 2 Caixa Organizadora 20 litros Tampa com Trava Empilhável Multiuso"},
+  {n:27,pedido:"702-0281675-1150639",data:"19/11/2026",qtd:1,situacao:"Devolução iniciada",dev:"Pacote 5/5 — coleta pelos Correios — rastreio DA654782275BR — devolver até 01/02/2027",produto:"Tubo com 24 Pilhas Alcalinas AAA (2ª remessa)"},
+  {n:28,pedido:"702-0281675-1150639",data:"19/11/2026",qtd:4,situacao:"Entregue em 25/11/2026",dev:"Devolução não iniciada — elegível até 31/01/2027",produto:"Kit de Cartas UNO Clássico Mattel com 108 7 Anos ou Mai, Multicolorido"},
+  {n:29,pedido:"702-0281675-1150639",data:"19/11/2026",qtd:2,situacao:"Entregue em 25/11/2026",dev:"Devolução não iniciada — elegível até 31/01/2027",produto:"GGB Jogo Investimento Imobiliário Cards"},
+  {n:30,pedido:"702-9988693-4044261",data:"19/11/2026",qtd:1,situacao:"Devolução iniciada",dev:"Código de devolução não incluído no documento — consultar “Exibir status de devolução” no site",produto:"Plastificadora Laminadora para Documentos e Fotos A4"},
+  {n:31,pedido:"702-1035869-1408223",data:"19/11/2026",qtd:1,situacao:"Solicitação de devolução aprovada",dev:"Código de devolução não incluído no documento — consultar “Exibir status de devolução” no site",produto:"Relógio De Parede Grande Led Digital Para Academia Hospital"},
+  {n:32,pedido:"702-3363770-9297066",data:"19/11/2026",qtd:1,situacao:"Solicitação de devolução aprovada",dev:"Código de devolução não incluído no documento — consultar “Exibir status de devolução” no site",produto:"Escada de Aço e Alumínio Multiuso 4x3 com Plataforma 12 Degraus Nell Kmp403"},
+  {n:33,pedido:"702-7785880-8155457",data:"19/11/2026",qtd:2,situacao:"Cancelado — sem cobrança",dev:"—",produto:"Ventilador de Parede Monta Fácil 50cm Preto 127V Ventisol | Com chave de controle"},
+  {n:34,pedido:"702-9713427-1598646",data:"19/11/2026",qtd:1,situacao:"Cancelado — sem cobrança",dev:"—",produto:"WAP Aparador de Grama Elétrico WG AG01E 1600W 28cm 11.000 RPM 220V | 1600W, corte de 28 cm e 11.000 RPM"},
+  {n:35,pedido:"702-3991214-5653015",data:"19/11/2026",qtd:2,situacao:"Cancelado — sem cobrança",dev:"—",produto:"Mini Projetor Portátil 5G Wi-Fi 6 Bluetooth 5.0 Android 11 4K 1080P Full HD 8000 Lumens LED Auto Correção Trapezoidal Horizontal Rotação 180° Ideal para Projeções Cinemáticas"},
+  {n:36,pedido:"702-1430848-3452214",data:"19/11/2026",qtd:1,situacao:"Devolução iniciada",dev:"Código de devolução não incluído no documento — consultar “Exibir status de devolução” no site",produto:"Smart TV 50\" Aoc Roku 4K Série 6125-50U6125/78G"},
+  {n:37,pedido:"702-9918830-6981051",data:"18/11/2026",qtd:2,situacao:"Cancelado — sem cobrança",dev:"—",produto:"Mini Projetor Portátil 5G Wi-Fi 6 Bluetooth 5.0 Android 11 4K 1080P Full HD 8000 Lumens LED Auto Correção Trapezoidal Horizontal Rotação 180° Ideal para Projeções Cinemáticas"},
+  {n:38,pedido:"702-4549914-7021850",data:"18/11/2026",qtd:1,situacao:"Cancelado — sem cobrança",dev:"—",produto:"Tablet com Caneta e Teclado Xixaomiro S8 Android 15 10.1\" 12GB+ 128GB Cinza | CPU-A523 Câmera 13MP + 5MP, Bateria 8000mAh, 5G Wi-Fi 6 Tablet com Mouse Teclado, ideal para estudo e entretenimento"},
+  {n:39,pedido:"702-9840877-8169810",data:"18/11/2026",qtd:1,situacao:"Cancelado — sem cobrança",dev:"—",produto:"Smart TV 50\" Aoc Roku 4K Série 6125-50U6125/78G"}
+];
+
+/* rastreamento / ID de barras -> pacote */
+const RASTREIO_PACOTE = {"QS659313963BR":"1/5","DA654782298BR":"2/5","QS659313950BR":"3/5","DA654782284BR":"4/5","DA654782275BR":"5/5"};
+const IDBARRA_PACOTE  = {"DY0wl3HFRRMA":"1/5","DB06l7HFRRMA":"2/5","D80yl9HFRRMA":"3/5","Dk0GlDHFRRMA":"4/5","DB0Yl9HFRRMA":"5/5"};
+const PACOTE = {
+  "1/5":{rastreio:"QS659313963BR",id:"DY0wl3HFRRMA",itens:[23]},
+  "2/5":{rastreio:"DA654782298BR",id:"DB06l7HFRRMA",itens:[14,15,16,17,18]},
+  "3/5":{rastreio:"QS659313950BR",id:"D80yl9HFRRMA",itens:[20,21]},
+  "4/5":{rastreio:"DA654782284BR",id:"Dk0GlDHFRRMA",itens:[26]},
+  "5/5":{rastreio:"DA654782275BR",id:"DB0Yl9HFRRMA",itens:[24,27]}
+};
+/* código de postagem / ID de devolução -> pedido (chaves em maiúsculas para busca tolerante) */
+const CODIGO_PEDIDO_UP = {};
+(function () { ["AP736161644BR|702-9780654-7289839", "4602950814|702-8347530-3600241", "AP736161216BR|702-7771397-7250618", "4602951633|702-2079532-6645026", "DZ0zlNH2RRMA|702-9780654-7289839", "DL0XlgHVRRMA|702-8769365-2775404", "Dh00ldHzRRMA|702-8347530-3600241", "D50dlbHzRRMA|702-7771397-7250618", "Dk0vlLHvRRMA|702-2190383-6711424", "Dh07lwHvRRMA|702-2079532-6645026"].forEach(par => { const p = par.split("|"); CODIGO_PEDIDO_UP[p[0].toUpperCase()] = p[1]; }); })();
+const PEDIDOS_DB = Object.keys(PEDIDO_TOTAL);
+
+/* ============ LÓGICA DE CONSULTA ============ */
+function formatarPedido(digitos) { return "702-" + digitos.slice(3, 10) + "-" + digitos.slice(10); }
+
+/* candidatos de nº de pedido a partir de texto livre (OCR ou digitação) */
+function candidatosPedido(texto) {
+  const t = String(texto).toUpperCase().replace(/[^0-9A-Z]/g, "");
+  const fix = s => s.replace(/O/g,"0").replace(/[IL|]/g,"1").replace(/S/g,"5").replace(/B/g,"8").replace(/Z/g,"2").replace(/D/g,"0");
+  const achados = new Set();
+  for (let i = 0; i < t.length; i++) {
+    for (let L = 19; L >= 12; L--) {
+      if (i + L > t.length) continue;
+      const win = fix(t.slice(i, i + L));
+      if (!/^\d+$/.test(win)) continue;
+      const cands = [win];
+      if (win.length === 16) cands.push("7" + win);
+      if (win.length === 18) cands.push(win.slice(1));
+      for (const c of cands) {
+        if (/^702\d{14}$/.test(c)) achados.add(formatarPedido(c));
+      }
+    }
+  }
+  return [...achados].filter(p => PEDIDOS_DB.indexOf(p) >= 0);
+}
+
+/* resultado: {tipo:'pedido'|'pacote', pedido?, pacote?, itens:[...], via?} */
+function consulta(entrada) {
+  let s = String(entrada || "").trim().toUpperCase().replace(/\s+/g, "");
+  if (!s) return null;
+  const sOri = String(entrada || "").trim();
+  // nº de pedido direto (com ou sem hífens)
+  let m = s.match(/^702-?\d{7}-?\d{7}$/);
+  if (m) {
+    const dig = s.replace(/-/g, "");
+    const ped = formatarPedido(dig);
+    if (PEDIDOS_DB.indexOf(ped) >= 0) return { tipo: "pedido", pedido: ped, itens: ITENS.filter(i => i.pedido === ped), via: sOri };
+  }
+  // candidatos embutidos no texto digitado
+  const cands = candidatosPedido(sOri);
+  if (cands.length === 1) return { tipo: "pedido", pedido: cands[0], itens: ITENS.filter(i => i.pedido === cands[0]), via: sOri };
+  if (cands.length > 1) return { tipo: "multiplo", pedidos: cands, via: sOri };
+  // código de postagem / ID de devolução -> pedido (comparação em maiúsculas)
+  if (CODIGO_PEDIDO_UP[s]) return { tipo: "pedido", pedido: CODIGO_PEDIDO_UP[s], itens: ITENS.filter(i => i.pedido === CODIGO_PEDIDO_UP[s]), via: sOri };
+  // rastreio -> pacote
+  if (RASTREIO_PACOTE[s]) { const p = RASTREIO_PACOTE[s]; return { tipo: "pacote", pacote: p, itens: PACOTE[p].itens.map(n => ITENS[n - 1]), via: sOri }; }
+  // ID de barras do pacote -> pacote
+  let chave = Object.keys(IDBARRA_PACOTE).find(k => k.toUpperCase() === s);
+  if (chave) { const p = IDBARRA_PACOTE[chave]; return { tipo: "pacote", pacote: p, itens: PACOTE[p].itens.map(n => ITENS[n - 1]), via: sOri }; }
+  return null;
+}
+
+/* extrai código(s) copiável(is) de uma linha de devolução */
+function codigoDaLinha(dev) {
+  const padroes = [/[A-Z]{2}\d{9}BR\b/, /[A-Z]{2}\d{10}BR\b/, /\b\d{10}\b/, /\bD[A-Za-z0-9]{9,11}\b/];
+  for (const p of padroes) { const m = String(dev).match(p); if (m) return m[0]; }
+  return null;
+}
+if (typeof module !== "undefined" && module.exports) { module.exports = { ITENS, PEDIDOS_DB, PACOTE, RASTREIO_PACOTE, IDBARRA_PACOTE, CODIGO_PEDIDO_UP, consulta, candidatosPedido, codigoDaLinha, formatarPedido }; }
+/*CORE-END*/
+
+/* ============ INTERFACE ============ */
+if (typeof document !== "undefined") {
+(function () {
+  const $ = id => document.getElementById(id);
+  const elRes = $("resultado");
+
+  /* ---- abas ---- */
+  function ativa(painel, btn) {
+    document.querySelectorAll("nav button").forEach(b => b.classList.remove("ativo"));
+    document.querySelectorAll("section.painel").forEach(s => s.classList.remove("ativo"));
+    $(painel).classList.add("ativo"); $(btn).classList.add("ativo");
+    if (painel !== "pnl-bc") pararBarras();
+    window.scrollTo({ top: 0 });
+  }
+  document.querySelectorAll("nav button").forEach(b => b.addEventListener("click", () => ativa(b.dataset.vai, b.id)));
+
+  /* ---- render de resultado ---- */
+  function badgeClasse(s) {
+    if (s.indexOf("Devolução iniciada") === 0) return "b-dev";
+    if (s.indexOf("Solicitação") === 0) return "b-apr";
+    if (s.indexOf("A caminho") === 0) return "b-cam";
+    if (s.indexOf("Entregue") === 0) return "b-ent";
+    if (s.indexOf("Cancelado") === 0) return "b-can";
+    return "b-ent";
+  }
+  function esc(t) { const d = document.createElement("div"); d.textContent = t; return d.innerHTML; }
+
+  function renderItens(itens) {
+    return itens.map(i => {
+      const cod = codigoDaLinha(i.dev);
+      const copiar = cod ? '<button data-copiar="' + esc(cod) + '">copiar código</button>' : "";
+      return '<div class="item">' +
+        '<div class="prod">' + esc(i.produto) + "</div>" +
+        '<div class="linha"><div class="qtd">' + i.qtd + "<small>unidade(s)</small></div>" +
+        '<div><span class="badge ' + badgeClasse(i.situacao) + '">' + esc(i.situacao) + "</span></div></div>" +
+        '<div class="dev">' + copiar + "<b>Devolução:</b> " + esc(i.dev) + "</div>" +
+        '<div class="status" style="min-height:0">Item ' + i.n + " de 39 — pedido de " + esc(i.data) + "</div>" +
+        "</div>";
+    }).join("");
+  }
+
+  function renderPedido(ped, via) {
+    const total = PEDIDO_TOTAL[ped];
+    return '<div class="pedido-cab"><div class="num">' + esc(ped) + "</div>" +
+      '<div class="meta">Pedido realizado em ' + esc(ITENS.find(i => i.pedido === ped).data) +
+      (total ? " • total impresso do pedido: R$ " + esc(total) : " • cancelado, sem cobrança") +
+      (via ? " • lido de: “" + esc(via) + "”" : "") + "</div>" +
+      '<button data-copiar="' + esc(ped) + '">copiar nº do pedido</button></div>' +
+      renderItens(ITENS.filter(i => i.pedido === ped));
+  }
+
+  function renderPacote(p, via) {
+    const info = PACOTE[p];
+    const itensTxt = info.itens.map(n => ITENS[n - 1].qtd).reduce((a, b) => a + b, 0);
+    return '<div class="pacote-cab"><div class="t">Pacote ' + esc(p) + " de 5 — coleta pelos Correios</div>" +
+      '<div class="m">Rastreamento: <span class="mono">' + esc(info.rastreio) + "</span> • código de barras da devolução: <span class=\"mono\">" + esc(info.id) + "</span></div>" +
+      '<div class="m">Devolver até <b>01/02/2027</b> • ' + info.itens.length + " produto(s), " + itensTxt + " unidade(s)</div>" +
+      (via ? '<div class="m">lido de: “' + esc(via) + "”</div>" : "") + "</div>" +
+      renderItens(info.itens.map(n => ITENS[n - 1]));
+  }
+
+  function mostrar(r) {
+    if (!r) {
+      elRes.innerHTML = '<div class="erro"><b>Não encontrei este código na base.</b> Confira se o número foi lido por completo (702-XXXXXXX-XXXXXXX), tente de novo com melhor luz/ângulo, use a leitura por foto, ou consulte pela aba “Digitar nº”.</div>';
+      return;
+    }
+    if (r.tipo === "multiplo") {
+      elRes.innerHTML = '<div class="aviso">Vários pedidos possíveis no texto lido: ' + r.pedidos.map(esc).join(", ") + '. Refaça a leitura ou digite o número completo.</div>';
+      return;
+    }
+    elRes.innerHTML = r.tipo === "pedido" ? renderPedido(r.pedido, r.via) : renderPacote(r.pacote, r.via);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+
+  document.addEventListener("click", function (ev) {
+    const b = ev.target.closest("[data-copiar]");
+    if (!b) return;
+    const txt = b.getAttribute("data-copiar");
+    const done = () => { const o = b.textContent; b.textContent = "copiado ✓"; setTimeout(() => { b.textContent = o; }, 1200); };
+    if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(txt).then(done, done);
+    else { const ta = document.createElement("textarea"); ta.value = txt; document.body.appendChild(ta); ta.select(); try { document.execCommand("copy"); } catch (e) {} document.body.removeChild(ta); done(); }
+  });
+
+  /* ---- câmera ---- */
+  let stream = null;
+  async function abrirCamera(videoId, btnId) {
+    try {
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) throw new Error("sem getUserMedia");
+      fecharCamera();
+      stream = await navigator.mediaDevices.getUserMedia({ audio: false, video: { facingMode: "environment", width: { ideal: 1920 }, height: { ideal: 1080 } } });
+      const v = $(videoId); v.srcObject = stream; await v.play();
+      $(btnId).disabled = false;
+      return true;
+    } catch (e) {
+      $(videoId).closest(".moldura").insertAdjacentHTML("beforeend",
+        '<div class="aviso" style="margin:10px">Câmera indisponível aqui (' + esc(e.name || e.message) + '). Abra a página pelo endereço https:// (GitHub Pages) e permita o acesso — ou use “Ler foto em alta resolução”.</div>');
+      return false;
+    }
+  }
+  function fecharCamera() { if (stream) { stream.getTracks().forEach(t => t.stop()); stream = null; } }
+
+  /* ---- OCR ---- */
+  let workerPromise = null;
+  function carregarScript(src, cb, errCb) {
+    const s = document.createElement("script"); s.src = src;
+    s.onload = cb; s.onerror = () => errCb(new Error("falha ao baixar " + src));
+    document.head.appendChild(s);
+  }
+  function carregarScriptP(src) { return new Promise((resolve, reject) => carregarScript(src, resolve, reject)); }
+  function getWorker() {
+    if (!workerPromise) {
+      setStatus("status-ocr", "Carregando o leitor de texto (primeira vez só)…", true);
+      workerPromise = carregarScriptP("https://cdn.jsdelivr.net/npm/tesseract.js@7/dist/tesseract.min.js")
+        .then(() => Tesseract.createWorker("eng", 1, {
+          logger: m => { if (m.status && typeof m.progress === "number") setStatus("status-ocr", m.status.charAt(0).toUpperCase() + m.status.slice(1) + "…", true, m.progress); }
+        }))
+        .catch(e => { workerPromise = null; throw new Error("Não carregou o leitor de texto — precisa de internet na primeira vez. " + (e.message || e)); });
+    }
+    return workerPromise;
+  }
+  function setStatus(id, txt, barra, prog) {
+    $(id).textContent = txt || "";
+    const b = $(id).parentNode.querySelector(".barra");
+    if (b) { b.style.display = barra ? "block" : "none"; if (barra && typeof prog === "number") b.firstElementChild.style.width = Math.round(prog * 100) + "%"; if (barra && prog == null) b.firstElementChild.style.width = "40%"; }
+  }
+  function rotacionar(src, graus) {
+    const c = document.createElement("canvas");
+    if (graus % 180 === 0) { c.width = src.width; c.height = src.height; } else { c.width = src.height; c.height = src.width; }
+    const g = c.getContext("2d");
+    g.translate(c.width / 2, c.height / 2); g.rotate(graus * Math.PI / 180);
+    g.drawImage(src, -src.width / 2, -src.height / 2);
+    return c;
+  }
+  function reduzirCinza(src, maxLado) {
+    const f = Math.min(1, maxLado / Math.max(src.width, src.height));
+    const c = document.createElement("canvas");
+    c.width = Math.round(src.width * f); c.height = Math.round(src.height * f);
+    const g = c.getContext("2d"); g.imageSmoothingEnabled = true; g.imageSmoothingQuality = "high"; g.drawImage(src, 0, 0, c.width, c.height);
+    const im = g.getImageData(0, 0, c.width, c.height), d = im.data;
+    const vals = [];
+    for (let i = 0; i < d.length; i += 4) {
+      const v = (d[i] * 299 + d[i + 1] * 587 + d[i + 2] * 114) / 1000;
+      d[i] = d[i + 1] = d[i + 2] = v; vals.push(v);
+    }
+    vals.sort(function (a, b) { return a - b; });
+    const mn = vals[Math.floor(vals.length * 0.02)] || 0;
+    const mx = vals[Math.min(vals.length - 1, Math.floor(vals.length * 0.98))] || 255;
+    const amp = Math.max(1, mx - mn);
+    for (let i = 0; i < d.length; i += 4) {
+      let v = (d[i] - mn) * 255 / amp;
+      if (v < 0) v = 0; if (v > 255) v = 255;
+      d[i] = d[i + 1] = d[i + 2] = v;
+    }
+    g.putImageData(im, 0, 0);
+    return c;
+  }
+  function acharAncora(data) {
+    let achada = null;
+    for (const b of (data.blocks || [])) for (const p of (b.paragraphs || [])) for (const ln of (p.lines || [])) for (const w of (ln.words || [])) {
+      if (w && w.bbox && /702|ORDER/i.test(w.text || "")) { if (!achada || (/702/i.test(w.text) && !/702/i.test(achada.text))) achada = w; }
+    }
+    return achada;
+  }
+  function recortarFaixa(rotCanvas, word, escalaRef) {
+    const s = rotCanvas.width / escalaRef;
+    const x0 = Math.max(0, Math.round((word.bbox.x0 - 50) * s));
+    const y0 = Math.max(0, Math.round((word.bbox.y0 - 35) * s));
+    const x1 = Math.min(rotCanvas.width, Math.round((word.bbox.x0 + 780) * s));
+    const y1 = Math.min(rotCanvas.height, Math.round((word.bbox.y1 + 35) * s));
+    const c = document.createElement("canvas");
+    c.width = Math.max(8, x1 - x0); c.height = Math.max(8, y1 - y0);
+    c.getContext("2d").drawImage(rotCanvas, x0, y0, c.width, c.height, 0, 0, c.width, c.height);
+    return c;
+  }
+  function recortarLinha(rotCanvas, word, escalaRef) {
+    const s = rotCanvas.width / escalaRef;
+    const x0 = Math.max(0, Math.round((word.bbox.x0 - 50) * s));
+    const y0 = Math.max(0, Math.round((word.bbox.y0 - 18) * s));
+    const x1 = Math.min(rotCanvas.width, Math.round((word.bbox.x0 + 780) * s));
+    const y1 = Math.min(rotCanvas.height, Math.round((word.bbox.y1 + 18) * s));
+    const c = document.createElement("canvas");
+    c.width = Math.max(8, x1 - x0); c.height = Math.max(8, y1 - y0);
+    c.getContext("2d").drawImage(rotCanvas, x0, y0, c.width, c.height, 0, 0, c.width, c.height);
+    return c;
+  }
+  function binarizarOtsu(canvas) {
+    const g = canvas.getContext("2d");
+    const im = g.getImageData(0, 0, canvas.width, canvas.height), d = im.data;
+    const hist = new Array(256).fill(0);
+    for (let i = 0; i < d.length; i += 4) hist[d[i] & 255]++;
+    const total = d.length / 4;
+    let soma = 0; for (let t = 0; t < 256; t++) soma += t * hist[t];
+    let somaB = 0, wB = 0, melhor = 0, limiar = 127;
+    for (let t = 0; t < 256; t++) {
+      wB += hist[t]; if (!wB) continue;
+      const wF = total - wB; if (!wF) break;
+      somaB += t * hist[t];
+      const mB = somaB / wB, mF = (soma - somaB) / wF;
+      const entre = wB * wF * (mB - mF) * (mB - mF);
+      if (entre > melhor) { melhor = entre; limiar = t; }
+    }
+    for (let i = 0; i < d.length; i += 4) {
+      const v = d[i] > limiar ? 255 : 0;
+      d[i] = d[i + 1] = d[i + 2] = v; d[i + 3] = 255;
+    }
+    g.putImageData(im, 0, 0);
+    return canvas;
+  }
+  function ampliarContraste(src, fator) {
+    const c = document.createElement("canvas");
+    c.width = Math.round(src.width * fator); c.height = Math.round(src.height * fator);
+    const g = c.getContext("2d");
+    g.imageSmoothingEnabled = true; g.imageSmoothingQuality = "high";
+    g.drawImage(src, 0, 0, c.width, c.height);
+    const im = g.getImageData(0, 0, c.width, c.height), d = im.data;
+    let mn = 255, mx = 0;
+    for (let i = 0; i < d.length; i += 4) { const v = (d[i] * 299 + d[i + 1] * 587 + d[i + 2] * 114) / 1000; if (v < mn) mn = v; if (v > mx) mx = v; }
+    const amp = Math.max(1, mx - mn);
+    for (let i = 0; i < d.length; i += 4) {
+      let v = (d[i] - mn) * 255 / amp; d[i] = d[i + 1] = d[i + 2] = v;
+    }
+    g.putImageData(im, 0, 0);
+    return c;
+  }
+
+  async function lerEtiqueta(fonteCanvas) {
+    const worker = await getWorker();
+    const dbg = window.__appDebug ? [] : null;
+    if (dbg) window.__dbg = dbg;
+    const ordens = [0, 90, 270, 180];
+    for (const g of ordens) {
+      try {
+        setStatus("status-ocr", g === 0 ? "Analisando imagem…" : "Analisando imagem (rotação " + g + "°)…", true);
+        const rot = rotacionar(fonteCanvas, g);
+        const pequena = reduzirCinza(rot, 1600);
+        if (dbg) { try { window.__imgdbg = pequena.toDataURL("image/png"); } catch (eI) {} }
+        const p1 = await worker.recognize(pequena, {}, { text: true, blocks: true });
+        const anc = acharAncora(p1.data);
+        if (dbg) dbg.push({ rot: g, anc: anc ? (anc.text + "@" + anc.bbox.x0 + "," + anc.bbox.y0) : null, texto1: (p1.data.text || "").replace(/\s+/g, " ").slice(0, 220) });
+        const cands = candidatosPedido(p1.data.text || "");
+        const hit = cands.map(consulta).find(Boolean);
+        if (hit) return hit;
+        if (anc) {
+          setStatus("status-ocr", "Linha do pedido localizada — lendo em alta resolução…", true);
+          const faixa = recortarFaixa(rot, anc, pequena.width);
+          const linha = recortarLinha(rot, anc, pequena.width);
+          const variantes = [
+            { img: ampliarContraste(faixa, 3), psm: "6", nome: "faixa-cinza" },
+            { img: binarizarOtsu(ampliarContraste(faixa, 3)), psm: "6", nome: "faixa-otsu" },
+            { img: ampliarContraste(linha, 3), psm: "7", nome: "linha-cinza" },
+            { img: binarizarOtsu(ampliarContraste(linha, 3)), psm: "7", nome: "linha-otsu" }
+          ];
+          for (const v of variantes) {
+            await worker.setParameters({ tessedit_pageseg_mode: v.psm });
+            const p2 = await worker.recognize(v.img, {}, { text: true });
+            const cands2 = candidatosPedido(p2.data.text || "");
+            if (dbg) dbg.push({ psm: v.psm, variante: v.nome, texto2: (p2.data.text || "").replace(/\s+/g, " ").slice(0, 160) });
+            const hit2 = cands2.map(consulta).find(Boolean);
+            if (hit2) { await worker.setParameters({ tessedit_pageseg_mode: "3" }); return hit2; }
+          }
+          await worker.setParameters({ tessedit_pageseg_mode: "3" });
+        }
+      } catch (eRot) {
+        if (dbg) dbg.push({ rot: g, erro: String((eRot && eRot.message) || eRot).slice(0, 160) });
+      }
+    }
+    return null;
+  }
+
+  async function capturarELer() {
+    const v = $("video-ocr");
+    if (!v.videoWidth) { setStatus("status-ocr", "Abra a câmera primeiro."); return; }
+    const c = document.createElement("canvas");
+    c.width = v.videoWidth; c.height = v.videoHeight;
+    c.getContext("2d").drawImage(v, 0, 0);
+    await ler(c);
+  }
+  async function lerArquivo(file) {
+    const img = new Image();
+    img.onload = async () => {
+      const c = document.createElement("canvas");
+      const f = Math.min(1, 4096 / Math.max(img.naturalWidth, img.naturalHeight));
+      c.width = Math.round(img.naturalWidth * f); c.height = Math.round(img.naturalHeight * f);
+      c.getContext("2d").drawImage(img, 0, 0, c.width, c.height);
+      await ler(c);
+      if (img.src.indexOf("blob:") === 0) URL.revokeObjectURL(img.src);
+    };
+    img.onerror = () => setStatus("status-ocr", "Não consegui abrir esta imagem.");
+    img.src = URL.createObjectURL(file);
+  }
+  async function ler(canvas) {
+    $("btn-capturar").disabled = true;
+    try {
+      const r = await lerEtiqueta(canvas);
+      mostrar(r);
+      setStatus("status-ocr", r ? "" : "Nenhum nº de pedido encontrado nesta imagem. Tente aproximar da linha “Order ID: 702-…”, melhorar a luz ou usar a foto em alta resolução.");
+    } catch (e) {
+      setStatus("status-ocr", "Falhou: " + (e.message || e));
+    }
+    $("btn-capturar").disabled = false;
+  }
+
+  $("btn-abrir-cam").addEventListener("click", async () => {
+    const ok = await abrirCamera("video-ocr", "btn-capturar");
+    if (ok) setStatus("status-ocr", "Câmera aberta. Enquadre a etiqueta e toque em “Capturar e ler”.");
+  });
+  $("btn-capturar").addEventListener("click", capturarELer);
+  $("btn-foto").addEventListener("click", () => $("inp-foto").click());
+  $("inp-foto").addEventListener("change", e => { if (e.target.files[0]) lerArquivo(e.target.files[0]); e.target.value = ""; });
+
+  /* ---- código de barras ---- */
+  let bcLoop = null, zxingReader = null, bcAtivo = false;
+  function pararBarras() {
+    bcAtivo = false;
+    if (bcLoop) { clearInterval(bcLoop); bcLoop = null; }
+    if (zxingReader) { try { zxingReader.reset(); } catch (e) {} zxingReader = null; }
+    const b = $("btn-parar-bc"); if (b) b.disabled = true;
+  }
+  function processarBc(texto) {
+    const r = consulta(texto);
+    if (r) { mostrar(r); pararBarras(); setStatus("status-bc", "Código lido: " + texto); return true; }
+    setStatus("status-bc", "Código lido (“" + texto + "”) não está na base. Se for a etiqueta de envio, use a aba “Ler etiqueta” para capturar o Order ID.");
+    return false;
+  }
+  $("btn-abrir-cam-bc").addEventListener("click", async () => {
+    const ok = await abrirCamera("video-bc", "btn-parar-bc");
+    if (!ok) return;
+    bcAtivo = true; $("btn-parar-bc").disabled = false;
+    setStatus("status-bc", "Procurando código… aponte para o código de barras da etiqueta.");
+    if ("BarcodeDetector" in window) {
+      let det;
+      try {
+        const fmts = await BarcodeDetector.getSupportedFormats();
+        det = new BarcodeDetector({ formats: fmts });
+      } catch (e) { det = new BarcodeDetector(); }
+      bcLoop = setInterval(async () => {
+        if (!bcAtivo) return;
+        try { const rs = await det.detect($("video-bc")); if (rs && rs.length) processarBc(rs[0].rawValue); } catch (e) {}
+      }, 400);
+    } else {
+      carregarScript("https://cdn.jsdelivr.net/npm/@zxing/library@0.21.3/umd/index.min.js", () => {
+        if (!bcAtivo) return;
+        try {
+          zxingReader = new ZXing.BrowserMultiFormatReader();
+          zxingReader.decodeFromVideoElement($("video-bc"), (res, err) => {
+            if (bcAtivo && res && res.text) processarBc(res.text);
+          });
+        } catch (e) { setStatus("status-bc", "Leitor de código não disponível neste navegador (" + esc(e.message || e) + ")."); }
+      }, e => setStatus("status-bc", "Não carregou o leitor alternativo (sem internet?): " + esc(e.message || e)));
+    }
+  });
+  $("btn-parar-bc").addEventListener("click", () => { pararBarras(); setStatus("status-bc", "Leitura parada."); });
+
+  /* ---- manual ---- */
+  const sel = $("sel-manual");
+  const vistos = new Set();
+  ITENS.forEach(i => { if (!vistos.has(i.pedido)) { vistos.add(i.pedido); const o = document.createElement("option"); o.value = i.pedido; o.textContent = i.pedido + " — " + i.data + (PEDIDO_TOTAL[i.pedido] ? " — R$ " + PEDIDO_TOTAL[i.pedido] : ""); sel.appendChild(o); } });
+  function consultarManual() {
+    const v = $("inp-manual").value.trim() || sel.value;
+    if (!v) { mostrar(null); return; }
+    mostrar(consulta(v));
+  }
+  $("btn-consultar").addEventListener("click", consultarManual);
+  $("inp-manual").addEventListener("keydown", e => { if (e.key === "Enter") consultarManual(); });
+  sel.addEventListener("change", () => { if (sel.value) { $("inp-manual").value = ""; consultarManual(); } });
+
+  /* ---- lista ---- */
+  function tirarAcentos(s) { return s.normalize("NFD").replace(/[\u0300-\u036f]/g, ""); }
+  function montarLista(filtro) {
+    const tb = $("tbl-lista").tBodies[0];
+    const f = tirarAcentos((filtro || "").toLowerCase());
+    tb.innerHTML = ITENS.filter(i => !f || tirarAcentos((i.produto + " " + i.pedido + " " + i.situacao + " " + i.dev).toLowerCase()).indexOf(f) >= 0)
+      .map(i => '<tr class="clicavel" data-item="' + i.n + '"><td>' + i.n + '</td><td class="mono">' + i.pedido + "<br>" + i.data + "</td><td>" + esc(i.produto) + "</td><td>" + i.qtd + '</td><td><span class="badge ' + badgeClasse(i.situacao) + '">' + esc(i.situacao) + "</span></td></tr>").join("");
+  }
+  $("inp-filtro").addEventListener("input", e => montarLista(e.target.value));
+  $("tbl-lista").addEventListener("click", e => {
+    const tr = e.target.closest("tr[data-item]");
+    if (!tr) return;
+    const item = ITENS.find(i => i.n === Number(tr.getAttribute("data-item")));
+    mostrar({ tipo: "pedido", pedido: item.pedido, itens: ITENS.filter(x => x.pedido === item.pedido) });
+    ativa("pnl-ocr", "tab-ocr");
+  });
+  montarLista("");
+
+  /* gancho para testes automatizados (não expõe nada além das funções de leitura/consulta) */
+  window.__app = { ler, lerEtiqueta, consulta, candidatosPedido };
+})();
+}
+</script>
+</body>
+</html>
